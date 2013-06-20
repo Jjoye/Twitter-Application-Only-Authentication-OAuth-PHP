@@ -193,7 +193,7 @@ class OauthTwitter {
   {
     $entities = $entities ? 'true' : 'false';
     $endpoint = '/search/tweets.json';
-    $data = '?q='. $query .'&result_type='. $result_type .'&count='. $count .'&include_entities='. $entities;
+    $data = '?q='. urlencode(trim($query)) .'&result_type='. $result_type .'&count='. $count .'&include_entities='. $entities;
 
     return $this->_getHttpRequest($endpoint, $data);
   }
