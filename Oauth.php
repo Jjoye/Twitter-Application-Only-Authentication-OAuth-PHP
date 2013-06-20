@@ -11,9 +11,16 @@ define(TW_BASEURL, TW_PROTOCOL . TW_HOST .'/'. TW_VERSION);
  * Used for authenticate your application and run request to Twitter API
  *
  *  Usage :
+ *    // Get the Object authenticated
  *    $obj = new OauthTwitter($consumer_key, $consumer_secret, $app_name);
+ *
+ *    // Get Account Tweets
  *    $obj->getAccountStatuses($account);
+ *
+ *    // Get Account Infos (Followers count..)
  *    $obj->getAccountInfos($account);
+ *
+ *    // Get the Results for a term
  *    $obj->getSearchResults($term);
  */
 class OauthTwitter {
@@ -54,7 +61,7 @@ class OauthTwitter {
 
   /**
    * Set the Consumer Token.
-   * Used to get, or invalidates the Bearer Token
+   * Used to get, or invalidate the Bearer Token
    */
   private function _setConsumerToken()
   {
@@ -73,30 +80,31 @@ class OauthTwitter {
   {
     $endpoint = '/oauth2/token';
     $url = TW_PROTOCOL . TW_HOST . $endpoint;
+    $posted_data = 'grant_type=client_credentials';
     $headers = array(
-      'POST '. $end_point .' HTTP/1.1',
+      'POST '. $endpoint .' HTTP/1.1',
       'Host: '. TW_HOST,
       'User-Agent: '. $this->_app_name,
       'Authorization: Basic '. $this->_consumer_token,
       'Content-Type: application/x-www-form-urlencoded;charset=UTF-8',
-      'Content-Length: 29',
+      'Content-Length: '. strlen($posted_data),
     );
-
+    
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $posted_data);
+    $header = curl_setopt($ch, CURLOPT_HEADER, 1);
+    $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    
     try
     {
-      $ch = curl_init($url);
-      curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-      curl_setopt($ch, CURLOPT_POST, true);
-      curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-      curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-      curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-      curl_setopt($ch, CURLOPT_POSTFIELDS, array('grant_type' => 'client_credentials'));
-      $header = curl_setopt($ch, CURLOPT_HEADER, 1);
-      $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
       $res = curl_exec($ch);
       curl_close($ch);
       $bearer_token = json_decode(end(explode("\n", $res)));
-
       $this->_bearer_token = $bearer_token->access_token;
     }
     catch (HttpException $ex) {
@@ -113,6 +121,7 @@ class OauthTwitter {
   {
     $endpoint = '/oauth2/invalidate_token';
     $url = TW_PROTOCOL . TW_HOST . $endpoint;
+    $posted_data = 'access_token='. $this->_bearer_token;
     $headers = array(
       'POST '. $endpoint .' HTTP/1.1',
       'Host: '. TW_HOST,
@@ -120,19 +129,20 @@ class OauthTwitter {
       'Authorization: Basic '. $this->_consumer_token,
       'Accept: */*',
       'Content-Type: application/x-www-form-urlencoded',
-      'Content-Length: '. strlen($this->_consumer_token) + 13
+      'Content-Length: '. strlen($posted_data)
     );
 
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $posted_data);
+    $header = curl_setopt($ch, CURLOPT_HEADER, 1);
+    $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    
     try {
-      $ch = curl_init($url);
-      curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-      curl_setopt($ch, CURLOPT_POST, true);
-      curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-      curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-      curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-      curl_setopt($ch, CURLOPT_POSTFIELDS, array('access_token' => $this->_bearer_token));
-      $header = curl_setopt($ch, CURLOPT_HEADER, 1);
-      $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
       $return = curl_exec($ch);
       curl_close($ch);
     }
@@ -149,7 +159,7 @@ class OauthTwitter {
   private function _getHttpRequest($endpoint, $data)
   {
     $headers = array(
-      'GET: /'. TW_VERSION . $endpoint .' HTTP/1.1',
+      'GET /'. TW_VERSION . $endpoint .' HTTP/1.1',
       'Host: '. TW_HOST,
       'User-Agent:'. $this->_app_name,
       'Authorization: Bearer '. $this->_bearer_token,
