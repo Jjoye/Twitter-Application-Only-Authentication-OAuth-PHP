@@ -25,8 +25,6 @@ define(TW_BASEURL, TW_PROTOCOL . TW_HOST .'/'. TW_VERSION);
  */
 class OauthTwitter {
 
-  private static $_instance;
-
   private $_app_name;
   private $_consumer_key;
   private $_consumer_secret;
