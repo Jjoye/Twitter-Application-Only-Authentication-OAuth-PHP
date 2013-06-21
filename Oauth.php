@@ -43,10 +43,18 @@ class OauthTwitter {
     $this->_app_name = $app_name;
 
     // Encode the consumer token for authentication
-    $this->_setConsumerToken();
+    try {
+      $this->_setConsumerToken();
+    } catch (Exception $e) {
+      echo 'Error. '. $e->getMessage() . PHP_EOL;
+    }
 
     // Define Bearer token for requests
-    $this->_setBearerToken();
+    try {
+      $this->_setBearerToken();
+    } catch (Exception $e) {
+      echo 'Error. '. $e->getMessage() . PHP_EOL;
+    }
   }
 
   /**
@@ -54,7 +62,11 @@ class OauthTwitter {
    */
   function __destruct()
   {
-    $this->_invalidateBearerToken();
+    try {
+      $this->_invalidateBearerToken();
+    } catch (Exception $e) {
+      echo 'Error. '. $e->getMessage() . PHP_EOL;
+    }
   }
 
   /**
@@ -97,17 +109,15 @@ class OauthTwitter {
     curl_setopt($ch, CURLOPT_POSTFIELDS, $posted_data);
     $header = curl_setopt($ch, CURLOPT_HEADER, 1);
     $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $return = curl_exec($ch);
     
-    try
-    {
-      $res = curl_exec($ch);
-      curl_close($ch);
-      $bearer_token = json_decode(end(explode("\n", $res)));
-      $this->_bearer_token = $bearer_token->access_token;
+    if ($return === FALSE) {
+      throw new Exception('Request Failed: '. curl_error($ch));
+      return FALSE;
     }
-    catch (HttpException $ex) {
-      throw new Exception('Could not retrieve data from Twitter. '. $ex);
-    }
+    curl_close($ch);
+    $data = json_decode(end(explode("\n", $return)));
+    $this->_bearer_token = $data->access_token;
   }
 
   /**
@@ -139,15 +149,13 @@ class OauthTwitter {
     curl_setopt($ch, CURLOPT_POSTFIELDS, $posted_data);
     $header = curl_setopt($ch, CURLOPT_HEADER, 1);
     $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $return = curl_exec($ch);
     
-    try {
-      $return = curl_exec($ch);
-      curl_close($ch);
+    if ($return === FALSE) {
+      throw new Exception('Request Failed: '. curl_error($ch));
     }
-    catch (HttpException $ex) {
-      throw new Exception('Could not retrieve data from Twitter. '. $ex);
-    }
-
+    curl_close($ch);
+    
     return $return;
   }
 
@@ -157,7 +165,7 @@ class OauthTwitter {
   private function _getHttpRequest($endpoint, $data)
   {
     $headers = array(
-      'GET /'. TW_VERSION . $endpoint .' HTTP/1.1',
+      'GET /'. TW_VERSION . $endpoint . $data .' HTTP/1.1',
       'Host: '. TW_HOST,
       'User-Agent:'. $this->_app_name,
       'Authorization: Bearer '. $this->_bearer_token,
@@ -165,22 +173,18 @@ class OauthTwitter {
 
     $ch = curl_init(TW_BASEURL . $endpoint . $data);
     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-    curl_setopt($ch, CURLOPT_POST, false);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    $header = curl_setopt($ch, CURLOPT_HEADER, 1);
-    $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-    try {
-      $return = curl_exec($ch);
-      curl_close($ch);
-      $data = end(explode("\n", $return));
+    $return = curl_exec($ch);
+    
+    if ($return === FALSE) {
+      throw new Exception('Request Failed: '. curl_error($ch));
+      return FALSE;
     }
-    catch (HttpException $ex) {
-      throw new Exception('Could not retrieve data from Twitter. '. $ex);
-    }
-
+    curl_close($ch);
+    $data = end(explode("\n", $return));
+  
     return json_decode($data);
   }
 
@@ -189,13 +193,17 @@ class OauthTwitter {
    * Basic Tweets Search of the Search API
    * Based on https://dev.twitter.com/docs/api/1.1/get/search/tweets
    */
-  public function getSearchResults($query, $result_type = 'mixed', $count = 5, $entities = TRUE)
+  public function getSearchResults($query, $result_type = 'recent', $count = '5', $entities = TRUE)
   {
     $entities = $entities ? 'true' : 'false';
     $endpoint = '/search/tweets.json';
     $data = '?q='. urlencode(trim($query)) .'&result_type='. $result_type .'&count='. $count .'&include_entities='. $entities;
 
-    return $this->_getHttpRequest($endpoint, $data);
+    try {
+      return $this->_getHttpRequest($endpoint, $data)->statuses;
+    } catch (Exception $e) {
+      echo 'Error. '. $e->getMessage() . PHP_EOL;
+    }
   }
 
   /**
@@ -203,12 +211,17 @@ class OauthTwitter {
    * Basic User Timeline of the Statuses API
    * Based on https://dev.twitter.com/docs/api/1.1/get/statuses/user_timeline
    */
-  public function getAccountStatuses($screen_name, $result_type = 'recent', $count = 2)
+  public function getAccountStatuses($screen_name, $result_type = 'recent', $count = 5, $entities = TRUE)
   {
+    $entities = $entities ? 'true' : 'false';
     $endpoint = '/statuses/user_timeline.json';
-    $data = '?screen_name='. ltrim($screen_name, '@') .'&count='. $count .'&result_type='. $result_type .'&rpp='. $count .'&include_entities=true';
+    $data = '?screen_name='. urlencode(ltrim($screen_name, '@')) .'&result_type='. $result_type .'&count='. $count .'&include_entities='. $entities;
 
-    return $this->_getHttpRequest($endpoint, $data);
+    try {
+      return $this->_getHttpRequest($endpoint, $data);
+    } catch (Exception $e) {
+      echo 'Error. '. $e->getMessage() . PHP_EOL;
+    }
   }
 
   /**
@@ -219,9 +232,13 @@ class OauthTwitter {
   public function getAccountInfos($screen_name)
   {
     $endpoint = '/users/show.json'; // base url
-    $data = '?screen_name='. ltrim($screen_name, '@');
+    $data = '?screen_name='. urlencode(ltrim($screen_name, '@'));
 
-    return $this->_getHttpRequest($endpoint, $data);
+    try {
+      return $this->_getHttpRequest($endpoint, $data);
+    } catch (Exception $e) {
+      echo 'Error. '. $e->getMessage() . PHP_EOL;
+    }
   }
 
 }
