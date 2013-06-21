@@ -48,8 +48,9 @@ class OauthTwitter {
     // Define Bearer token for requests
     try {
       $this->_setBearerToken();
+      return $this;
     } catch (Exception $e) {
-      echo 'Error. '. $e->getMessage() . PHP_EOL;
+      throw new Exception($e->getMessage());
     }
   }
 
@@ -58,11 +59,7 @@ class OauthTwitter {
    */
   function __destruct()
   {
-    try {
-      $this->_invalidateBearerToken();
-    } catch (Exception $e) {
-      echo 'Error. '. $e->getMessage() . PHP_EOL;
-    }
+    $this->_invalidateBearerToken();
   }
 
   /**
@@ -113,6 +110,10 @@ class OauthTwitter {
     }
     curl_close($ch);
     $data = json_decode(end(explode("\n", $return)));
+    if (isset($data->errors[0]->message)) {
+      throw new Exception($data->errors[0]->message);
+      return FALSE;
+    }
     $this->_bearer_token = $data->access_token;
   }
 
@@ -146,10 +147,6 @@ class OauthTwitter {
     $header = curl_setopt($ch, CURLOPT_HEADER, 1);
     $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $return = curl_exec($ch);
-
-    if ($return === FALSE) {
-      throw new Exception('Request Failed: '. curl_error($ch));
-    }
     curl_close($ch);
 
     return $return;
@@ -175,13 +172,16 @@ class OauthTwitter {
     $return = curl_exec($ch);
 
     if ($return === FALSE) {
-      throw new Exception('Request Failed: '. curl_error($ch));
+      throw new Exception(curl_error($ch));
       return FALSE;
     }
     curl_close($ch);
-    $data = end(explode("\n", $return));
+    $data = json_decode(end(explode("\n", $return)));
+    if (isset($data->errors[0]->message)) {
+      throw new Exception($data->errors[0]->message);
+    }
 
-    return json_decode($data);
+    return $data;
   }
 
   /**
@@ -198,7 +198,7 @@ class OauthTwitter {
     try {
       return $this->_getHttpRequest($endpoint, $data)->statuses;
     } catch (Exception $e) {
-      echo 'Error. '. $e->getMessage() . PHP_EOL;
+      throw new Exception($e->getMessage());
     }
   }
 
@@ -216,7 +216,7 @@ class OauthTwitter {
     try {
       return $this->_getHttpRequest($endpoint, $data);
     } catch (Exception $e) {
-      echo 'Error. '. $e->getMessage() . PHP_EOL;
+      throw new Exception($e->getMessage());
     }
   }
 
@@ -233,7 +233,7 @@ class OauthTwitter {
     try {
       return $this->_getHttpRequest($endpoint, $data);
     } catch (Exception $e) {
-      echo 'Error. '. $e->getMessage() . PHP_EOL;
+      throw new Exception($e->getMessage());
     }
   }
 

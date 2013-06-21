@@ -3,18 +3,34 @@
 // Require the Oauth Class file
 require_once('../Oauth.php');
 
+$errors = '';
+
 $consumer_key = 'MY_CONSUMER_KEY';
 $consumer_secret = 'MY_CONSUMER_SECRET';
 $app_name = 'This is my first Twitter Application !';
 
 // Authenticate the Application
-if ($oauthTwitter = new OauthTwitter($consumer_key, $consumer_secret, $app_name)) {
-  
+try {
+  $oauthTwitter = new OauthTwitter($consumer_key, $consumer_secret, $app_name);
+} catch (Exception $e) {
+  $errors .= '<strong>Could not connect to twitter.</strong> Message: '. $e->getMessage();
+}
+
+if ($oauthTwitter) {
   // Get infos about this twitter account
-  $account_infos = $oauthTwitter->getAccountInfos('julienjoye');
-  
+  try {
+    $account_infos = $oauthTwitter->getAccountInfos('julienjoye');
+  } catch (Exception $e) {
+    $errors .= '<strong>Could not retrieve this twitter account.</strong> Message: '. $e->getMessage();
+  }
+
   // Get the last tweets for this twitter account
-  if ($items = $oauthTwitter->getAccountStatuses('julienjoye')) {
+  try {
+    $items = $oauthTwitter->getAccountStatuses('julienjoye');
+  } catch (Exception $e) {
+    $errors .= '<strong>Could not retrieve twitter statuses.</strong> Message: '. $e->getMessage();
+  }
+  if (is_array($items)) {
     $tweets = array();
     foreach ($items as $item) {
       $tweet = new Stdclass();
@@ -25,10 +41,15 @@ if ($oauthTwitter = new OauthTwitter($consumer_key, $consumer_secret, $app_name)
       $tweets[] = $tweet;
     }
   }
-  
+
   $searched_term = 'High-tech';
   // Get the last results for a term
-  if ($terms = $oauthTwitter->getSearchResults($searched_term)) {
+  try {
+    $terms = $oauthTwitter->getSearchResults($searched_term);
+  } catch (Exception $e) {
+    $errors .= '<strong>Could not retrieve twitter results.</strong> Message: '. $e->getMessage();
+  }
+  if (is_array($terms)) {
     $results = array();
     foreach ($terms as $term) {
       $result = new Stdclass();
@@ -72,7 +93,13 @@ if ($oauthTwitter = new OauthTwitter($consumer_key, $consumer_secret, $app_name)
       </div>
 
       <hr>
-        
+
+      <?php if ($errors): ?>
+        <div class="alert alert-error">
+          <?php print $errors; ?>
+        </div>
+      <?php endif; ?>
+
       <?php if ($account_infos): ?>
         <div class="jumbotron">
           <h1><?php print $account_infos->name; ?></h1>
@@ -81,9 +108,9 @@ if ($oauthTwitter = new OauthTwitter($consumer_key, $consumer_secret, $app_name)
         </div>
         <hr>
       <?php endif; ?>
-    
+
       <div class="row-fluid marketing">
-      
+
         <div class="span6">
           <?php if (isset($tweets)): ?>
             <div class="row">
@@ -109,7 +136,7 @@ if ($oauthTwitter = new OauthTwitter($consumer_key, $consumer_secret, $app_name)
             <?php endforeach; ?>
           <?php endif; ?>
         </div>
-  
+
         <div class="span6">
           <?php if (isset($results)): ?>
             <div class="row">
@@ -135,7 +162,7 @@ if ($oauthTwitter = new OauthTwitter($consumer_key, $consumer_secret, $app_name)
             <?php endforeach; ?>
           <?php endif; ?>
         </div>
-      
+
       </div>
       <hr>
 
