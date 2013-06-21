@@ -43,11 +43,7 @@ class OauthTwitter {
     $this->_app_name = $app_name;
 
     // Encode the consumer token for authentication
-    try {
-      $this->_setConsumerToken();
-    } catch (Exception $e) {
-      echo 'Error. '. $e->getMessage() . PHP_EOL;
-    }
+    $this->_setConsumerToken();
 
     // Define Bearer token for requests
     try {
@@ -99,7 +95,7 @@ class OauthTwitter {
       'Content-Type: application/x-www-form-urlencoded;charset=UTF-8',
       'Content-Length: '. strlen($posted_data),
     );
-    
+
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
     curl_setopt($ch, CURLOPT_POST, true);
@@ -110,7 +106,7 @@ class OauthTwitter {
     $header = curl_setopt($ch, CURLOPT_HEADER, 1);
     $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $return = curl_exec($ch);
-    
+
     if ($return === FALSE) {
       throw new Exception('Request Failed: '. curl_error($ch));
       return FALSE;
@@ -150,12 +146,12 @@ class OauthTwitter {
     $header = curl_setopt($ch, CURLOPT_HEADER, 1);
     $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $return = curl_exec($ch);
-    
+
     if ($return === FALSE) {
       throw new Exception('Request Failed: '. curl_error($ch));
     }
     curl_close($ch);
-    
+
     return $return;
   }
 
@@ -177,14 +173,14 @@ class OauthTwitter {
     curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     $return = curl_exec($ch);
-    
+
     if ($return === FALSE) {
       throw new Exception('Request Failed: '. curl_error($ch));
       return FALSE;
     }
     curl_close($ch);
     $data = end(explode("\n", $return));
-  
+
     return json_decode($data);
   }
 
