@@ -1,5 +1,5 @@
-Twitter-Application-only-Authentication-App---OAuth-
-====================================================
+Twitter Application-only Authentication (OAuth) using PHP
+=========================================================
 
 Provides a PHP Class that authenticates a Twitter Application.
 - $oauthTwitter = new OauthTwitter($consumer_key, $consumer_secret);
