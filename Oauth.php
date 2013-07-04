@@ -6,6 +6,9 @@ define(TW_HOST, 'api.twitter.com');
 define(TW_VERSION, '1.1');
 define(TW_BASEURL, TW_PROTOCOL . TW_HOST .'/'. TW_VERSION);
 
+// Define Cache time to 5mn
+define(APP_CACHE_TIME, 300);
+
 /**
  * OauthTwitter Class
  * Used for authenticate your application and run request to Twitter API
@@ -155,16 +158,19 @@ class OauthTwitter {
   /**
    * Send Basic GET Requests to the Twitter API
    */
-  private function _getHttpRequest($endpoint, $data)
+  private function _getHttpRequest($endpoint, $params)
   {
+    if ($cached_data = $this->_getCachedData($endpoint, $params)) {
+      return $cached_data;
+    }
     $headers = array(
-      'GET /'. TW_VERSION . $endpoint . $data .' HTTP/1.1',
+      'GET /'. TW_VERSION . $endpoint . $params .' HTTP/1.1',
       'Host: '. TW_HOST,
       'User-Agent:'. $this->_app_name,
       'Authorization: Bearer '. $this->_bearer_token,
     );
 
-    $ch = curl_init(TW_BASEURL . $endpoint . $data);
+    $ch = curl_init(TW_BASEURL . $endpoint . $params);
     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
@@ -181,7 +187,38 @@ class OauthTwitter {
       throw new Exception($data->errors[0]->message);
     }
 
+    $this->_setCachedData($endpoint, $params, $data);
     return $data;
+  }
+
+  /**
+   * Get the session-stored data if it exists and is not expired
+   */
+  private function _getCachedData($endpoint, $params) {
+    $cache_name = $this->_getCacheName($endpoint, $params);
+    if (isset($_SESSION[$cache_name]) && $_SESSION[$cache_name]['expires'] >= time()) {
+      return unserialize($_SESSION[$cache_name]['data']);
+    }
+    return FALSE;
+  }
+
+  /**
+   * Store data in session to avoid requests spam
+   */
+  private function _setCachedData($endpoint, $params, $data) {
+    $cache_name = $this->_getCacheName($endpoint, $params);
+    unset($_SESSION[$cache_name]);
+    $_SESSION[$cache_name] = array(
+      'data' => serialize($data),
+      'expires' => time() + APP_CACHE_TIME
+    );
+  }
+
+  /**
+   * Get the cache name to identify a cache data
+   */
+  private function _getCacheName($endpoint, $params) {
+    return md5($endpoint . $params);
   }
 
   /**

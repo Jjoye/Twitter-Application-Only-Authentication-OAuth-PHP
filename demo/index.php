@@ -1,5 +1,7 @@
 <?php
 
+session_start();
+
 // Require the Oauth Class file
 require_once('../Oauth.php');
 
