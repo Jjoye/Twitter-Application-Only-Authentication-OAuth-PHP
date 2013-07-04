@@ -148,11 +148,7 @@ class OauthTwitter {
   /**
    * Send Basic GET Requests to the Twitter API
    */
-<<<<<<< HEAD
-  private function _sendHttpRequest($endpoint, $data)
-=======
-  private function _getHttpRequest($endpoint, $params)
->>>>>>> dev
+  private function _sendHttpRequest($endpoint, $params)
   {
     if ($cached_data = $this->_getCachedData($endpoint, $params)) {
       return $cached_data;
