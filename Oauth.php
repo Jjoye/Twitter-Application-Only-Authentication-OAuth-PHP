@@ -81,41 +81,18 @@ class OauthTwitter {
    */
   private function _setBearerToken()
   {
-    $endpoint = '/oauth2/token';
-    $url = TW_PROTOCOL . TW_HOST . $endpoint;
-    $posted_data = 'grant_type=client_credentials';
-    $headers = array(
-      'POST '. $endpoint .' HTTP/1.1',
-      'Host: '. TW_HOST,
-      'User-Agent: '. $this->_app_name,
-      'Authorization: Basic '. $this->_consumer_token,
-      'Content-Type: application/x-www-form-urlencoded;charset=UTF-8',
-      'Content-Length: '. strlen($posted_data),
-    );
-
-    $ch = curl_init($url);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $posted_data);
-    $header = curl_setopt($ch, CURLOPT_HEADER, 1);
-    $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $return = curl_exec($ch);
-
-    if ($return === FALSE) {
-      throw new Exception('Request Failed: '. curl_error($ch));
+    if ($request = $this->_sendAuthRequest('/oauth2/token', 'grant_type=client_credentials')) {
+      $data = json_decode(end(explode("\n", $request)));
+      if (isset($data->errors[0]->message)) {
+        throw new Exception($data->errors[0]->message);
+        return FALSE;
+      }
+      $this->_bearer_token = $data->access_token;
+    }
+    else {
       return FALSE;
     }
-    curl_close($ch);
-    $data = json_decode(end(explode("\n", $return)));
-    if (isset($data->errors[0]->message)) {
-      throw new Exception($data->errors[0]->message);
-      return FALSE;
-    }
-    $this->_bearer_token = $data->access_token;
-  }
+}
 
   /**
    * Invalidates the Bearer Token
@@ -124,17 +101,23 @@ class OauthTwitter {
    */
   private function _invalidateBearerToken()
   {
-    $endpoint = '/oauth2/invalidate_token';
+    return $this->_sendAuthRequest('/oauth2/invalidate_token', 'access_token='. $this->_bearer_token, FALSE);
+  }
+
+  /**
+   * Send Oauth Requests to set or invalidate bearer token
+   * @see _setBearerToken() and _invalidateBearerToken()
+   */
+  private function _sendAuthRequest($endpoint, $data, $errors = TRUE) {
     $url = TW_PROTOCOL . TW_HOST . $endpoint;
-    $posted_data = 'access_token='. $this->_bearer_token;
     $headers = array(
       'POST '. $endpoint .' HTTP/1.1',
       'Host: '. TW_HOST,
       'User-Agent: '. $this->_app_name,
       'Authorization: Basic '. $this->_consumer_token,
       'Accept: */*',
-      'Content-Type: application/x-www-form-urlencoded',
-      'Content-Length: '. strlen($posted_data)
+      'Content-Type: application/x-www-form-urlencoded;charset=UTF-8',
+      'Content-Length: '. strlen($data),
     );
 
     $ch = curl_init($url);
@@ -143,10 +126,17 @@ class OauthTwitter {
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $posted_data);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
     $header = curl_setopt($ch, CURLOPT_HEADER, 1);
     $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
     $return = curl_exec($ch);
+    if ($return === FALSE) {
+      if ($errors) {
+        throw new Exception('Request Failed: '. curl_error($ch));
+      }
+      return FALSE;
+    }
     curl_close($ch);
 
     return $return;
@@ -155,7 +145,7 @@ class OauthTwitter {
   /**
    * Send Basic GET Requests to the Twitter API
    */
-  private function _getHttpRequest($endpoint, $data)
+  private function _sendHttpRequest($endpoint, $data)
   {
     $headers = array(
       'GET /'. TW_VERSION . $endpoint . $data .' HTTP/1.1',
@@ -196,7 +186,7 @@ class OauthTwitter {
     $data = '?q='. urlencode(trim($query)) .'&result_type='. $result_type .'&count='. $count .'&include_entities='. $entities;
 
     try {
-      return $this->_getHttpRequest($endpoint, $data)->statuses;
+      return $this->_sendHttpRequest($endpoint, $data)->statuses;
     } catch (Exception $e) {
       throw new Exception($e->getMessage());
     }
@@ -214,7 +204,7 @@ class OauthTwitter {
     $data = '?screen_name='. urlencode(ltrim($screen_name, '@')) .'&result_type='. $result_type .'&count='. $count .'&include_entities='. $entities;
 
     try {
-      return $this->_getHttpRequest($endpoint, $data);
+      return $this->_sendHttpRequest($endpoint, $data);
     } catch (Exception $e) {
       throw new Exception($e->getMessage());
     }
@@ -231,7 +221,7 @@ class OauthTwitter {
     $data = '?screen_name='. urlencode(ltrim($screen_name, '@'));
 
     try {
-      return $this->_getHttpRequest($endpoint, $data);
+      return $this->_sendHttpRequest($endpoint, $data);
     } catch (Exception $e) {
       throw new Exception($e->getMessage());
     }
